@@ -1,0 +1,8 @@
+export enum AcademicYear {
+  FRESHMAN = 'FRESHMAN',
+  SOPHOMORE = 'SOPHOMORE',
+  JUNIOR = 'JUNIOR',
+  SENIOR = 'SENIOR',
+  GRADUATE = 'GRADUATE',
+  ALUMNI = 'ALUMNI',
+} 
