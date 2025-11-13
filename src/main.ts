@@ -33,11 +33,18 @@ async function bootstrap() {
     'http://localhost:3001',
     'http://35.32.91.174:3002',
   ];
-  const envOrigins = (process.env.CORS_ORIGIN || '')
+  const normalizeOrigin = (origin: string) =>
+    origin.replace(/\/+$/, '').toLowerCase();
+
+  const envOriginsRaw = (process.env.CORS_ORIGIN || '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+  const envOrigins = envOriginsRaw.map(normalizeOrigin);
+  const defaultNormalizedOrigins = defaultOrigins.map(normalizeOrigin);
+  const allowedOrigins = Array.from(
+    new Set([...defaultNormalizedOrigins, ...envOrigins]),
+  );
   const allowedOriginsSet = new Set(allowedOrigins);
 
   if (allowedOrigins.length === 0) {
@@ -56,7 +63,11 @@ async function bootstrap() {
         return;
       }
 
-      if (allowedOriginsSet.has('*') || allowedOriginsSet.has(requestOrigin)) {
+      const normalizedOrigin = normalizeOrigin(requestOrigin);
+      if (
+        allowedOriginsSet.has('*') ||
+        allowedOriginsSet.has(normalizedOrigin)
+      ) {
         callback(null, true);
         return;
       }
@@ -78,11 +89,18 @@ async function bootstrap() {
   app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
     // Set CORS headers for all uploads requests
     const requestOrigin = req.headers.origin;
-    if (requestOrigin && (allowedOriginsSet.has('*') || allowedOriginsSet.has(requestOrigin))) {
-      res.header('Access-Control-Allow-Origin', requestOrigin);
-      res.header('Vary', 'Origin');
+    if (requestOrigin) {
+      const normalizedOrigin = normalizeOrigin(requestOrigin);
+      if (
+        allowedOriginsSet.has('*') ||
+        allowedOriginsSet.has(normalizedOrigin)
+      ) {
+        res.header('Access-Control-Allow-Origin', requestOrigin);
+        res.header('Vary', 'Origin');
+      }
     } else if (allowedOriginsSet.has('*')) {
       res.header('Access-Control-Allow-Origin', '*');
+      res.header('Vary', 'Origin');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
