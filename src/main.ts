@@ -47,7 +47,10 @@ async function bootstrap() {
 
   // Update the CORS configuration to include PATCH method
   app.enableCors({
-    origin: (requestOrigin, callback) => {
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       if (!requestOrigin) {
         callback(null, true);
         return;
