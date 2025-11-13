@@ -28,18 +28,36 @@ async function bootstrap() {
   });
 
   app.use(helmet());
+  const defaultOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://35.32.91.174:3002',
+  ];
+  const envOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
   // Update the CORS configuration to include PATCH method
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://35.32.91.174:3002'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], // Add PATCH here
-    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+    ],
   });
 
   // Replace the existing static file serving with this updated version
   app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
     // Set CORS headers for all uploads requests
-    res.header('Access-Control-Allow-Origin', req.headers.origin || 'http://localhost:3000');
+    const requestOrigin = req.headers.origin || allowedOrigins[0] || '*';
+    res.header('Access-Control-Allow-Origin', requestOrigin);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
