@@ -38,10 +38,28 @@ async function bootstrap() {
     .map((origin) => origin.trim())
     .filter(Boolean);
   const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+  const allowedOriginsSet = new Set(allowedOrigins);
+
+  if (allowedOrigins.length === 0) {
+    allowedOrigins.push('*');
+    allowedOriginsSet.add('*');
+  }
 
   // Update the CORS configuration to include PATCH method
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOriginsSet.has('*') || allowedOriginsSet.has(requestOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${requestOrigin} not allowed by CORS`));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], // Add PATCH here
     allowedHeaders: [
@@ -56,8 +74,13 @@ async function bootstrap() {
   // Replace the existing static file serving with this updated version
   app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
     // Set CORS headers for all uploads requests
-    const requestOrigin = req.headers.origin || allowedOrigins[0] || '*';
-    res.header('Access-Control-Allow-Origin', requestOrigin);
+    const requestOrigin = req.headers.origin;
+    if (requestOrigin && (allowedOriginsSet.has('*') || allowedOriginsSet.has(requestOrigin))) {
+      res.header('Access-Control-Allow-Origin', requestOrigin);
+      res.header('Vary', 'Origin');
+    } else if (allowedOriginsSet.has('*')) {
+      res.header('Access-Control-Allow-Origin', '*');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     res.header('Access-Control-Allow-Credentials', 'true');
